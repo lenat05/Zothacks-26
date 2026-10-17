@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-const UCI_EMAIL = /^[^\s@]+@uci\.edu$/;
+const UCI_EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 function validate({ name, email, password }) {
   const errors = {};
   if (!name.trim()) errors.name = "Name is required";
-  if (!UCI_EMAIL.test(email)) errors.email = "Must be a valid @uci.edu email";
+  if (!UCI_EMAIL.test(email)) errors.email = "Must be a valid email";
   if (password.length < 8) errors.password = "Password must be at least 8 characters";
   return errors;
 }
@@ -75,7 +75,7 @@ export default function SignupForm({ onSwitchToLogin }) {
           name="email"
           value={form.email}
           onChange={handleChange}
-          placeholder="zotid@uci.edu"
+          placeholder="user@example.com"
         />
         {errors.email && <span className="field-error">{errors.email}</span>}
       </label>

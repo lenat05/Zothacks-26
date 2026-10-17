@@ -15,7 +15,7 @@ from mailer import send_verification_email, verify_token
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-UCI_EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@uci\.edu$", re.IGNORECASE)
+UCI_EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", re.IGNORECASE)
 
 db_users: dict[str, dict[str, Any]] = {}
 
@@ -36,7 +36,7 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_uci_email(cls, value: str) -> str:
         if UCI_EMAIL_PATTERN.fullmatch(value) is None:
-            raise ValueError("Must be a valid @uci.edu email")
+            raise ValueError("Must be a valid email")
         return value
 
     @field_validator("password")
