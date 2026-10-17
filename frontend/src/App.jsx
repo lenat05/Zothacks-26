@@ -9,12 +9,23 @@ function App() {
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((response) => setPage(response.ok ? "homepage" : "login"))
+      .then(async (response) => {
+        if (!response.ok) return setPage("login");
+        const user = await response.json();
+        setUsername(user.name);
+        setPage("homepage");
+      })
       .catch(() => setPage("login"));
   }, []);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("Anteater");
+
+  async function onLoginSuccess() {
+    const response = await fetch("/api/auth/me");
+    if (response.ok) setUsername((await response.json()).name);
+    setPage("homepage");
+  }
 
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
@@ -56,7 +67,7 @@ function App() {
   }
 
   if (page === "login") {
-    return <LoginForm onSwitchToSignup={() => setPage("signup")} onLoginSuccess={() => setPage("homepage")} />;
+    return <LoginForm onSwitchToSignup={() => setPage("signup")} onLoginSuccess={onLoginSuccess} />;
   }
 
   if (page === "homepage") {

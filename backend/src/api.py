@@ -79,7 +79,8 @@ app = FastAPI()
 async def current_user(access_token: str | None = Cookie(default=None)) -> dict[str, str]:
     """Validate the access-token cookie and return its authenticated subject."""
     email = validate_access_token(access_token)
-    return {"email": email}
+    user = supabase.table("users").select("name").eq("email", email).execute()
+    return {"email": email, "name": user.data[0].get("name") or "Anteater" if user.data else "Anteater"}
 
 
 @app.get("/users")
