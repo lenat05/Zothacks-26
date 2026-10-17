@@ -17,8 +17,8 @@ from supabase import create_client, Client
 
 # Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://sczhtmnffsvgwsxgyugt.supabase.co/")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_DgBXxzbn1pE4d-YpW4vaNg_48EEFrdC")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
