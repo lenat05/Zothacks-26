@@ -12,9 +12,12 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 from passlib.context import CryptContext
 from mailer import send_verification_email, verify_token
+from auth import ACCESS_TOKEN_MINUTES, create_access_token
 import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
 
+load_dotenv()
 # Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://sczhtmnffsvgwsxgyugt.supabase.co/")
 SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
@@ -68,12 +71,6 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(user_email: str) -> str:
-    """Mock access token generator."""
-    return f"mock-token-for-{user_email}"
-
-
 
 app = FastAPI()
 
@@ -162,7 +159,7 @@ async def login(credentials: UserLogin, response: Response) -> dict[str, str]:
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=900,
+        max_age=ACCESS_TOKEN_MINUTES * 60,
     )
 
     return {"message": "Logged in successfully"}

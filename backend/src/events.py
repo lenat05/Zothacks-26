@@ -18,6 +18,7 @@ from fastapi import APIRouter, Cookie, HTTPException, status
 from pydantic import BaseModel, field_validator
 
 from api import supabase
+from auth import get_current_user
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -33,10 +34,8 @@ CONFIRM_COUNT    = 3     # reports needed to mark event "confirmed"
 # ---------------------------------------------------------------------------
 
 def _get_current_user(access_token: str | None) -> str:
-    """Return email from cookie, or 401. TODO: verify JWT / Supabase session."""
-    if not access_token or not access_token.startswith("mock-token-for-"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not logged in")
-    return access_token.removeprefix("mock-token-for-")
+    """Return email from a validated access-token cookie, or raise 401."""
+    return get_current_user(access_token)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
