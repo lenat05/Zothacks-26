@@ -166,3 +166,38 @@ body {
   flex-direction: column;
   justify-content: space-between;
 }
+
+/* Skeleton Loading Animation */
+@keyframes pulse-skeleton {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.6; }
+}
+
+.skeleton-card {
+  animation: pulse-skeleton 1.5s infinite ease-in-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+
+.skeleton-line {
+  background-color: #1e293b;
+  border-radius: 4px;
+}
+
+.skeleton-line.short {
+  width: 40%;
+  height: 16px;
+}
+
+.skeleton-line.long {
+  width: 80%;
+  height: 22px;
+}
+
+.skeleton-line.medium {
+  width: 60%;
+  height: 16px;
+}

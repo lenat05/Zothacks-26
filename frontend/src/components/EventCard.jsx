@@ -21,7 +21,6 @@ export default function EventCard({ event }) {
   return (
     <article className="event-card">
       <div className="event-card-header">
-        <span className="event-tag">{event.tag}</span>
         <span className="event-date">
           {formatDate(start)}
         </span>
@@ -30,14 +29,14 @@ export default function EventCard({ event }) {
       <h2>{event.name}</h2>
 
       <p className="event-time">
-        {formatTime(start)}
-        {end && ` – ${formatTime(end)}`}
+        {startTime} {endTime && `– ${endTime}`}
       </p>
 
       <p className="event-location">
         Location: {event.latitude ?? event.latitutde},{" "}
         {event.longitude}
       </p>
+      <span className="event-tag">{event.tag}</span>
     </article>
   );
 
