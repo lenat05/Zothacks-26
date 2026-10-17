@@ -26,10 +26,10 @@ export default function EventList({ events, loading }) {
         <div 
           key={event.id || index} 
           style={{ 
-            border: '1px solid #ccc', 
+            border: '1px solid #020109', 
             borderRadius: '8px', 
             padding: '15px', 
-            backgroundColor: '#fefefe' 
+            backgroundColor: '#00030f' 
           }}
         >
           {/* 
