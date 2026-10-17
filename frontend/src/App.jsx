@@ -21,33 +21,7 @@ function App() {
           setEvents(data);
         } catch (error) {
           console.error("Could not load database feed:", error);
-          // 2. Updated dummy data keys to match your EventCard props (name, starts_at, tag, etc.)
-          setEvents([
-            { 
-              id: 1, 
-              name: "Free Petr Stickers!", 
-              latitude: 33.6480, 
-              longitude: -117.8415, 
-              starts_at: "2026-10-21T10:30:00-07:00", 
-              tag: "freebies" 
-            },
-            { 
-              id: 2, 
-              name: "Donut Drop 🍩", 
-              latitude: 33.6440, 
-              longitude: -117.8440, 
-              starts_at: "2026-10-21T12:30:00-07:00", 
-              tag: "food" 
-            },
-            { 
-              id: 3, 
-              name: "IEEE Mock Interviews", 
-              latitude: 33.6450, 
-              longitude: -117.8420, 
-              starts_at: "2026-10-21T14:00:00-07:00", 
-              tag: "career" 
-            },
-          ]);
+          setEvents([]); // Clears events on failure to trigger skeleton/empty state
         } finally {
           setLoading(false);
         }
@@ -81,9 +55,20 @@ function App() {
         <main>
           <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#213547" }}>Live Updates</h2>
           
-          {/* Loading and Event Mapping State */}
+          {/* ---> PUT STEP 2 CODE RIGHT HERE <--- */}
           {loading ? (
-            <p>Loading events...</p>
+            /* Loading Skeleton Placeholders */
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", width: "100%" }}>
+              {[1, 2, 3].map((n) => (
+                <div className="event-card-container skeleton-card" key={n}>
+                  <div className="skeleton-line short"></div>
+                  <div className="skeleton-line long"></div>
+                  <div className="skeleton-line medium"></div>
+                </div>
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <p>No active events right now.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
               {events.map((eventItem, index) => (
