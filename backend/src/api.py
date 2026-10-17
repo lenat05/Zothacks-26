@@ -11,13 +11,19 @@ from fastapi import FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, field_validator
 from passlib.context import CryptContext
 from mailer import send_verification_email, verify_token
+import os
+from supabase import create_client, Client
+
+# Initialize Supabase client
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://sczhtmnffsvgwsxgyugt.supabase.co/")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_DgBXxzbn1pE4d-YpW4vaNg_48EEFrdC")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 UCI_EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", re.IGNORECASE)
 
-db_users: dict[str, dict[str, Any]] = {}
 
 
 class UserCreate(BaseModel):
@@ -70,28 +76,27 @@ app = FastAPI()
 @app.get("/users")
 async def get_users() -> list[dict[str, Any]]:
     """Get a list of all registered users (excluding passwords)."""
-    return [
-        {"name": u["name"], "email": u["email"]} 
-        for u in db_users.values()
-    ]
+    res = supabase.table("users").select("name, email").execute()
+    return res.data
 
 
 @app.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(user: UserCreate) -> dict[str, str]:
     """Handles frontend signup request from SignupForm.jsx"""
-    if user.email in db_users:
+    res = supabase.table("users").select("email").eq("email", user.email).execute()
+    if res.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists."
         )
 
-    # Store user data
-    db_users[user.email] = {
+    # Insert new user
+    supabase.table("users").insert({
         "name": user.name,
         "email": user.email,
         "password": hash_password(user.password),
         "is_verified": False,
-    }
+    }).execute()
 
     send_verification_email(email=user.email, name=user.name)
 
@@ -101,21 +106,23 @@ async def signup(user: UserCreate) -> dict[str, str]:
 @app.get("/verify-email")
 async def verify_email(token: str) -> dict[str, str]:
     email = verify_token(token)
-    user = db_users.get(email or "")
+    res = supabase.table("users").select("*").eq("email", email or "").execute()
+    user = res.data[0] if res.data else None
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification link is invalid or has already been used.",
         )
 
-    user["is_verified"] = True
+    supabase.table("users").update({"is_verified": True}).eq("email", email).execute()
     return {"message": "Email verified. You can now log in."}
 
 
 @app.post("/login", status_code=status.HTTP_200_OK)
 async def login(credentials: UserLogin, response: Response) -> dict[str, str]:
     """Handles frontend login request from LoginForm.jsx"""
-    existing_user = db_users.get(credentials.email)
+    res = supabase.table("users").select("*").eq("email", credentials.email).execute()
+    existing_user = res.data[0] if res.data else None
 
     if not existing_user or not verify_password(credentials.password, existing_user["password"]):
         raise HTTPException(
