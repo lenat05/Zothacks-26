@@ -56,7 +56,7 @@ function App() {
           </button>
         </header>
         <div style={{ padding: "12px", backgroundColor: "#eff4f9", borderRadius: "8px", fontSize: "0.9rem", color: "#4a4a4a", marginBottom: "20px" }}>
-          🛠️ <em>Placeholder: A button or modal to post new events will be linked here later.</em>
+          🛠️ <em>Pop up!</em>
         </div>
         <main>
           <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#fcf4fa" }}>Live Updates</h2>

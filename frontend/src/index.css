@@ -1,4 +1,4 @@
-@import url('https://googleapis.com');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
 
 :root {
 	font-family: 'Comfortaa', sans-serif;
@@ -78,4 +78,8 @@ button:focus-visible {
 	button {
 		background-color: #f9f9f9;
 	}
+}
+/* Add to the absolute bottom of App.css */
+body, h1, h2, h3, p, button, input, select, textarea {
+  font-family: 'Comfortaa', sans-serif !important;
 }
