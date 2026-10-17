@@ -1,37 +1,59 @@
 import { useState } from "react";
 
-export default function SignupForm() {
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [status, setStatus] = useState(null); // null | "loading" | "success" | string(error)
+const UCI_EMAIL = /^[^\s@]+@uci\.edu$/;
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+function validate({ name, email, password }) {
+  const errors = {};
+  if (!name.trim()) errors.name = "Name is required";
+  if (!UCI_EMAIL.test(email)) errors.email = "Must be a valid @uci.edu email";
+  if (password.length < 8) errors.password = "Password must be at least 8 characters";
+  return errors;
+}
+
+export default function SignupForm({ onSwitchToLogin }) {
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
+  const [serverError, setServerError] = useState(null);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+    // clear field error on change
+    if (errors[name]) setErrors((e) => ({ ...e, [name]: null }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errs = validate(form);
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
     setStatus("loading");
+    setServerError(null);
     try {
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setStatus(data.detail || "Signup failed. Try again.");
-      } else {
+      if (res.status === 201) {
         setStatus("success");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setServerError(data.detail || "Signup failed. Try again.");
+        setStatus(null);
       }
     } catch {
-      setStatus("Network error. Is the backend running?");
+      setServerError("Network error — please try again.");
+      setStatus(null);
     }
   };
 
   if (status === "success")
-    return <p className="signup-success">🎉 You&apos;re signed up! Check your email.</p>;
+    return <p className="auth-success">🎉 You&apos;re signed up! Check your email.</p>;
 
   return (
-    <form className="signup-form" onSubmit={handleSubmit}>
+    <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <h2>Sign Up</h2>
 
       <label>
@@ -41,9 +63,9 @@ export default function SignupForm() {
           name="name"
           value={form.name}
           onChange={handleChange}
-          required
           placeholder="Your name"
         />
+        {errors.name && <span className="field-error">{errors.name}</span>}
       </label>
 
       <label>
@@ -53,9 +75,9 @@ export default function SignupForm() {
           name="email"
           value={form.email}
           onChange={handleChange}
-          required
-          placeholder="you@example.com"
+          placeholder="zotid@uci.edu"
         />
+        {errors.email && <span className="field-error">{errors.email}</span>}
       </label>
 
       <label>
@@ -65,19 +87,23 @@ export default function SignupForm() {
           name="password"
           value={form.password}
           onChange={handleChange}
-          required
-          minLength={8}
           placeholder="Min 8 characters"
         />
+        {errors.password && <span className="field-error">{errors.password}</span>}
       </label>
 
-      {status && status !== "loading" && (
-        <p className="signup-error">{status}</p>
-      )}
+      {serverError && <p className="auth-error">{serverError}</p>}
 
       <button type="submit" disabled={status === "loading"}>
         {status === "loading" ? "Signing up…" : "Sign Up"}
       </button>
+
+      <p className="auth-switch">
+        Already have an account?{" "}
+        <button type="button" className="link-btn" onClick={onSwitchToLogin}>
+          Log in
+        </button>
+      </p>
     </form>
   );
 }
