@@ -140,6 +140,12 @@ async def resend_verification(user: ResendVerification) -> dict[str, str]:
     return {"message": "Verification email sent."}
 
 
+@app.post("/logout")
+async def logout(response: Response) -> dict[str, str]:
+    response.delete_cookie("access_token", path="/", samesite="lax", secure=False)
+    return {"message": "Logged out"}
+
+
 @app.post("/login", status_code=status.HTTP_200_OK)
 async def login(credentials: UserLogin, response: Response) -> dict[str, str]:
     """Handles frontend login request from LoginForm.jsx"""
