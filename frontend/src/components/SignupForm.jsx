@@ -15,6 +15,7 @@ export default function SignupForm({ onSwitchToLogin }) {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
   const [serverError, setServerError] = useState(null);
+  const [resendStatus, setResendStatus] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,8 +50,26 @@ export default function SignupForm({ onSwitchToLogin }) {
     }
   };
 
+  const resendEmail = async () => {
+    setResendStatus("loading");
+    const res = await fetch("/api/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: form.email }),
+    });
+    setResendStatus(res.ok ? "sent" : "error");
+  };
+
   if (status === "success")
-    return <p className="auth-success">🎉 You&apos;re signed up! Check your email.</p>;
+    return (
+      <div className="auth-success">
+        <p>🎉 You&apos;re signed up! Check your email.</p>
+        <button type="button" onClick={resendEmail} disabled={resendStatus === "loading"}>
+          {resendStatus === "sent" ? "Email sent!" : "Resend verification email"}
+        </button>
+        {resendStatus === "error" && <p className="auth-error">Could not resend email.</p>}
+      </div>
+    );
 
   return (
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
