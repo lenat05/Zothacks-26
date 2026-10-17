@@ -6,14 +6,9 @@
 	font-weight: 400;
 
 	color-scheme: light dark;
-	color: rgba(174, 110, 110, 0.87);
+	color: rgba(250, 244, 244, 0.87);
 
-	/* Clean background setup pointing explicitly to your updated image file asset */
-	background-image: url('./assets/pixelocean.avif');
-	background-size: cover;
-	background-position: center;
-	background-attachment: fixed;
-	background-repeat: no-repeat;
+	
 
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
@@ -37,6 +32,13 @@ body {
 	place-items: center;
 	min-width: 320px;
 	min-height: 100vh;
+
+	/* Clean background setup pointing explicitly to your updated image file asset */
+	background-image: url('./assets/pixelocean.avif');
+	background-size: cover;
+	background-position: center;
+	background-attachment: fixed;
+	background-repeat: no-repeat;
 }
 
 h1 {
