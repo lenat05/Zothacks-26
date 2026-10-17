@@ -6,7 +6,7 @@ Mount in api.py:
     app.include_router(events_router)
 
 Auth: reads the access_token cookie set by /login.
-TODO: replace in-memory stores with Supabase via db.py
+Events are stored in the Supabase `events` table.
 """
 
 import math
@@ -17,12 +17,9 @@ from typing import Any, Literal
 from fastapi import APIRouter, Cookie, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-router = APIRouter(prefix="/events", tags=["events"])
+from api import supabase
 
-# ---------------------------------------------------------------------------
-# In-memory store  (swap for Supabase when db.py is ready)
-# ---------------------------------------------------------------------------
-db_events: dict[str, dict[str, Any]] = {}
+router = APIRouter(prefix="/events", tags=["events"])
 
 TAGS = {"free food", "free merch", "discounts", "career development"}
 
@@ -139,8 +136,8 @@ async def post_event(
         "reports_gone": [],
         "confirmed": False,      # True once CONFIRM_COUNT nearby "still here" reports
     }
-    db_events[event_id] = event
-    return _public(event)
+    response = supabase.table("events").insert(event).execute()
+    return _public(response.data[0] if response.data else event)
 
 
 @router.get("")
@@ -154,8 +151,9 @@ async def list_events(
     Return active events within radius_m metres of (lat, lon).
     Filter by tag if provided.
     """
+    response = supabase.table("events").select("*").execute()
     results = []
-    for event in db_events.values():
+    for event in response.data:
         if _is_expired(event):
             continue
         if tag and event["tag"] != tag:
@@ -188,9 +186,12 @@ async def report_event(
         event[key] = [r for r in event[key] if r["email"] != email]
 
     event[list_key].append({"email": email})
-
-    # Recheck confirmation threshold
     event["confirmed"] = len(event["reports_present"]) >= CONFIRM_COUNT
+    supabase.table("events").update({
+        "reports_present": event["reports_present"],
+        "reports_gone": event["reports_gone"],
+        "confirmed": event["confirmed"],
+    }).eq("id", event_id).execute()
 
     return {"confirmed": event["confirmed"], "reports_present": len(event["reports_present"])}
 
@@ -220,6 +221,12 @@ async def rate_event(
     event["voters_down"]  = list(voters_down)
     event["thumbs_up"]    = len(voters_up)
     event["thumbs_down"]  = len(voters_down)
+    supabase.table("events").update({
+        "voters_up": event["voters_up"],
+        "voters_down": event["voters_down"],
+        "thumbs_up": event["thumbs_up"],
+        "thumbs_down": event["thumbs_down"],
+    }).eq("id", event_id).execute()
 
     return {"thumbs_up": event["thumbs_up"], "thumbs_down": event["thumbs_down"]}
 
@@ -229,7 +236,8 @@ async def rate_event(
 # ---------------------------------------------------------------------------
 
 def _get_event(event_id: str) -> dict:
-    event = db_events.get(event_id)
+    response = supabase.table("events").select("*").eq("id", event_id).execute()
+    event = response.data[0] if response.data else None
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     if _is_expired(event):
