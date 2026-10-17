@@ -17,8 +17,10 @@ Required environment variables:
 import os
 import secrets
 import smtplib
+from html import escape
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr, parseaddr
 
 # tokens stored in-memory — swap for DB-backed store when persistence is needed
 _pending: dict[str, str] = {}  # token -> email
@@ -38,7 +40,11 @@ def _smtp_connection() -> smtplib.SMTP:
 
 
 def _build_email(to: str, name: str, verify_url: str) -> MIMEMultipart:
-    sender = os.environ.get("SMTP_FROM", os.environ["SMTP_USER"])
+    smtp_user = os.environ["SMTP_USER"]
+    display_name, sender_address = parseaddr(os.environ.get("SMTP_FROM", ""))
+    if "@" not in sender_address:
+        sender_address = smtp_user
+    sender = formataddr((display_name or "ZotHacks", sender_address))
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "Verify your ZotHacks account"
     msg["From"] = sender
@@ -49,9 +55,11 @@ def _build_email(to: str, name: str, verify_url: str) -> MIMEMultipart:
         f"Click the link below to verify your email:\n{verify_url}\n\n"
         "If you didn't sign up, ignore this email."
     )
+    html_name = escape(name)
+    html_url = escape(verify_url, quote=True)
     html = (
-        f"<p>Hi <strong>{name}</strong>,</p>"
-        f"<p><a href='{verify_url}'>Verify your email</a></p>"
+        f"<p>Hi <strong>{html_name}</strong>,</p>"
+        f"<p><a href='{html_url}'>Verify your email</a></p>"
         "<p>If you didn't sign up, ignore this email.</p>"
     )
 

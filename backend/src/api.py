@@ -8,6 +8,7 @@ $ fastapi dev src/api.py
 import re
 from typing import Any
 from fastapi import FastAPI, HTTPException, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 from passlib.context import CryptContext
 from mailer import send_verification_email, verify_token
@@ -56,6 +57,10 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+
+class ResendVerification(BaseModel):
+    email: str
 
 
 def hash_password(password: str) -> str:
@@ -115,7 +120,20 @@ async def verify_email(token: str) -> dict[str, str]:
         )
 
     supabase.table("users").update({"is_verified": True}).eq("email", email).execute()
-    return {"message": "Email verified. You can now log in."}
+    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/resend-verification")
+async def resend_verification(user: ResendVerification) -> dict[str, str]:
+    res = supabase.table("users").select("name, is_verified").eq("email", user.email).execute()
+    existing_user = res.data[0] if res.data else None
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="No account found for that email.")
+    if existing_user.get("is_verified"):
+        raise HTTPException(status_code=400, detail="This account is already verified.")
+
+    send_verification_email(email=user.email, name=existing_user["name"])
+    return {"message": "Verification email sent."}
 
 
 @app.post("/login", status_code=status.HTTP_200_OK)

@@ -14,6 +14,7 @@ export default function LoginForm({ onSwitchToSignup }) {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
   const [serverError, setServerError] = useState(null);
+  const [resendStatus, setResendStatus] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,6 +46,16 @@ export default function LoginForm({ onSwitchToSignup }) {
       setServerError("Network error — please try again.");
       setStatus(null);
     }
+  };
+
+  const resendEmail = async () => {
+    setResendStatus("loading");
+    const res = await fetch("/api/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: form.email }),
+    });
+    setResendStatus(res.ok ? "sent" : "error");
   };
 
   if (status === "success")
@@ -79,6 +90,11 @@ export default function LoginForm({ onSwitchToSignup }) {
       </label>
 
       {serverError && <p className="auth-error">{serverError}</p>}
+      {serverError === "Verify your email before logging in." && (
+        <button type="button" onClick={resendEmail} disabled={resendStatus === "loading"}>
+          {resendStatus === "sent" ? "Verification email sent!" : "Resend verification email"}
+        </button>
+      )}
 
       <button type="submit" disabled={status === "loading"}>
         {status === "loading" ? "Logging in…" : "Log In"}
