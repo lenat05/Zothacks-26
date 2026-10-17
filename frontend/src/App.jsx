@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import SignupForm from "@/components/SignupForm";
 import LoginForm from "@/components/LoginForm";
-import EventList from "@/components/EventList";
+import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
 
 function App() {
   const [page, setPage] = useState("homepage");
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState("Anteater"); // Added username state variable
+  const [username, setUsername] = useState("Anteater");
 
-  // Fetch the events from Lena's FastAPI server when page switches to homepage
+  // Fetch the events from FastAPI server when page switches to homepage
   useEffect(() => {
     if (page === "homepage") {
       async function fetchFeedData() {
@@ -21,13 +21,32 @@ function App() {
           setEvents(data);
         } catch (error) {
           console.error("Could not load database feed:", error);
-          // Fallback dummy data if server is down so you can test scrolling
+          // 2. Updated dummy data keys to match your EventCard props (name, starts_at, tag, etc.)
           setEvents([
-            { title: "Free Petr Stickers!", location: "Aldrich Park", time: "Right Now!", description: "Near the library canopy." },
-            { title: "Donut Drop 🍩", location: "Engineering Plaza", time: "12:30 PM", description: "Free donuts." },
-            { title: "IEEE Mock Interviews", location: "EH 1200", time: "2:00 PM", description: "Bring your resumes!" },
-            { title: "Free Boba!", location: "Student Center", time: "4:00 PM", description: "Sponsored by ASUCI." },
-            { title: "Late Night Pizza Popup", location: "Mesa Court Commons", time: "9:00 PM", description: "Free slices." }
+            { 
+              id: 1, 
+              name: "Free Petr Stickers!", 
+              latitude: 33.6480, 
+              longitude: -117.8415, 
+              starts_at: "2026-10-21T10:30:00-07:00", 
+              tag: "freebies" 
+            },
+            { 
+              id: 2, 
+              name: "Donut Drop 🍩", 
+              latitude: 33.6440, 
+              longitude: -117.8440, 
+              starts_at: "2026-10-21T12:30:00-07:00", 
+              tag: "food" 
+            },
+            { 
+              id: 3, 
+              name: "IEEE Mock Interviews", 
+              latitude: 33.6450, 
+              longitude: -117.8420, 
+              starts_at: "2026-10-21T14:00:00-07:00", 
+              tag: "career" 
+            },
           ]);
         } finally {
           setLoading(false);
@@ -49,25 +68,37 @@ function App() {
     return (
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
-          {/* Changed title text block to use the dynamic state variable */}
           <h1 style={{ margin: 0, fontSize: "1.8rem" }}>Hello, {username}! 👋</h1>
           <button onClick={() => setPage("login")} style={{ padding: "8px 16px", backgroundColor: "#efc5eb", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
             Logout
           </button>
         </header>
+
         <div style={{ padding: "12px", backgroundColor: "#eff4f9", borderRadius: "8px", fontSize: "0.9rem", color: "#4a4a4a", marginBottom: "20px" }}>
           🛠️ <em>Pop up!</em>
         </div>
+
         <main>
-          <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#fcf4fa" }}>Live Updates</h2>
-          <EventList events={events} loading={loading} />
+          <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#213547" }}>Live Updates</h2>
+          
+          {/* Loading and Event Mapping State */}
+          {loading ? (
+            <p>Loading events...</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
+              {events.map((eventItem, index) => (
+                <div className="event-card-container" key={eventItem.id || index}>
+                  <EventCard event={eventItem} />
+                </div>
+              ))}
+            </div>
+          )}
         </main>
       </div>
     );
   }
 
-  // This acts as the backup fallback matching your old routing structure
-  return page === "signup"
+ return page === "signup"
     ? <SignupForm onSwitchToLogin={() => setPage("login")} />
     : <LoginForm onSwitchToSignup={() => setPage("signup")} />;
 }

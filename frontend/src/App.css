@@ -1,113 +1,168 @@
 #root {
-	max-width: 1280px;
-	margin: 0 auto;
-	padding: 2rem;
-	text-align: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
 }
 
 .logo {
-	height: 6em;
-	padding: 1.5em;
-	will-change: filter;
-	transition: filter 300ms;
+    height: 6em;
+    padding: 1.5em;
+    will-change: filter;
+    transition: filter 300ms;
 }
 .logo:hover {
-	filter: drop-shadow(0 0 2em #646cffaa);
+    filter: drop-shadow(0 0 2em #646cffaa);
 }
 .logo.react:hover {
-	filter: drop-shadow(0 0 2em #61dafbaa);
+    filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
 @keyframes logo-spin {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	a:nth-of-type(2) .logo {
-		animation: logo-spin infinite 20s linear;
-	}
+    a:nth-of-type(2) .logo {
+        animation: logo-spin infinite 20s linear;
+    }
 }
 
 .card {
-	padding: 2em;
+    padding: 2em;
 }
 
 .read-the-docs {
-	color: #888;
+    color: #888;
 }
 
 /* Auth forms */
 .auth-form {
-	display: flex;
-	flex-direction: column;
-	gap: 1rem;
-	max-width: 360px;
-	margin: 2rem auto;
-	padding: 2rem;
-	border: 1px solid #333;
-	border-radius: 8px;
-	text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 360px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border: 1px solid #333;
+    border-radius: 8px;
+    text-align: left;
 }
 
 .auth-form h2 {
-	margin: 0 0 0.5rem;
+    margin: 0 0 0.5rem;
 }
 
 .auth-form label {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-	font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
 }
 
 .auth-form input {
-	padding: 0.5rem;
-	border: 1px solid #555;
-	border-radius: 4px;
-	background: #1a1a1a;
-	color: inherit;
-	font-size: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: inherit;
+    font-size: 1rem;
 }
 
 .auth-form button[type="submit"] {
-	padding: 0.6rem;
-	font-size: 1rem;
-	cursor: pointer;
+    padding: 0.6rem;
+    font-size: 1rem;
+    cursor: pointer;
 }
 
 .field-error {
-	color: #f88;
-	font-size: 0.8rem;
+    color: #f88;
+    font-size: 0.8rem;
 }
 
 .auth-error {
-	color: #f88;
-	margin: 0;
+    color: #f88;
+    margin: 0;
 }
 
 .auth-success {
-	text-align: center;
-	margin-top: 2rem;
-	font-size: 1.1rem;
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 1.1rem;
 }
 
 .auth-switch {
-	text-align: center;
-	font-size: 0.9rem;
-	margin: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    margin: 0;
 }
 
 .link-btn {
-	background: none;
-	border: none;
-	color: #646cff;
-	cursor: pointer;
-	font-size: inherit;
-	padding: 0;
-	text-decoration: underline;
+    background: none;
+    border: none;
+    color: #646cff;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+    text-decoration: underline;
+}
+
+/* 1. Main website background set to white */
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background-color: #ffffff;
+  color: #213547;
+}
+
+#root {
+  max-width: none;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* 2. Events page background set to white */
+.events-page {
+  min-height: 100vh;
+  width: 100%;
+  padding: 65px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  color: #213547;
+}
+
+/* 3. Dedicated class for just the event card styling */
+/* Event card container matching image styling */
+/* Event Card Dimensions & Styling matching your screenshot */
+/* Uniform card sizing */
+.event-card-container {
+  background-color: #00030f;
+  border: 1px solid #020109;
+  border-radius: 8px;
+  padding: 15px;
+  
+  /* Fixed/Uniform Dimensions */
+  width: 100%;
+  max-width: 380px;  /* Controls the width of the card */
+  min-height: 160px; /* Ensures all cards are at least this tall */
+  box-sizing: border-box;
+  text-align: left;
+  color: #ffffff;
+  
+  /* Prevents content from overflowing if text gets too long */
+  overflow: hidden; 
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
