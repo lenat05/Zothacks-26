@@ -10,11 +10,12 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, field_validator
 from passlib.context import CryptContext
+from mailer import send_verification_email, verify_token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-UCI_EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@uci\.edu$", re.IGNORECASE)
 
+UCI_EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@uci\.edu$", re.IGNORECASE)
 
 db_users: dict[str, dict[str, Any]] = {}
 
@@ -76,7 +77,7 @@ async def get_users() -> list[dict[str, Any]]:
 
 
 @app.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(user: UserCreate, response: Response) -> dict[str, str]:
+async def signup(user: UserCreate) -> dict[str, str]:
     """Handles frontend signup request from SignupForm.jsx"""
     if user.email in db_users:
         raise HTTPException(
@@ -88,33 +89,44 @@ async def signup(user: UserCreate, response: Response) -> dict[str, str]:
     db_users[user.email] = {
         "name": user.name,
         "email": user.email,
-        "password": user.hash_password(user.password),  # Note: Hash passwords using passlib/bcrypt in production
+        "password": hash_password(user.password),
+        "is_verified": False,
     }
 
-    # Generate token & set cookie
-    token = create_access_token(user_email=user.email)
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=900,
-    )
+    send_verification_email(email=user.email, name=user.name)
 
-    return {"message": "User created successfully"}
+    return {"message": "Check your email to verify your account."}
+
+
+@app.get("/verify-email")
+async def verify_email(token: str) -> dict[str, str]:
+    email = verify_token(token)
+    user = db_users.get(email or "")
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification link is invalid or has already been used.",
+        )
+
+    user["is_verified"] = True
+    return {"message": "Email verified. You can now log in."}
 
 
 @app.post("/login", status_code=status.HTTP_200_OK)
 async def login(credentials: UserLogin, response: Response) -> dict[str, str]:
     """Handles frontend login request from LoginForm.jsx"""
     existing_user = db_users.get(credentials.email)
-    
 
     if not existing_user or not verify_password(credentials.password, existing_user["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Login failed. Check your credentials."
+        )
+
+    if not existing_user.get("is_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Verify your email before logging in.",
         )
 
     # Generate token & set cookie
