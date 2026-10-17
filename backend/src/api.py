@@ -108,7 +108,8 @@ async def signup(user: UserCreate) -> dict[str, str]:
         "is_verified": False,
     }).execute()
 
-    send_verification_email(email=user.email, name=user.name)
+    token = send_verification_email(email=user.email, name=user.name)
+    print(f"Signup verification token for {user.email}: {token}")
 
     return {"message": "Check your email to verify your account."}
 
