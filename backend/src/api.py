@@ -176,3 +176,7 @@ async def login(credentials: UserLogin, response: Response) -> dict[str, str]:
     )
 
     return {"message": "Logged in successfully"}
+
+
+from events import router as events_router
+app.include_router(events_router)

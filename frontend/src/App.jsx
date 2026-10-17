@@ -27,7 +27,15 @@ function App() {
       async function fetchFeedData() {
         try {
           setLoading(true);
-          const response = await fetch("http://localhost:8000/events");
+          const { latitude = 33.6405, longitude = -117.8443 } = await new Promise((resolve) => {
+            if (!navigator.geolocation) return resolve({});
+            navigator.geolocation.getCurrentPosition(
+              ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+              () => resolve({}),
+              { timeout: 3000 },
+            );
+          });
+          const response = await fetch(`/api/events?lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
           setEvents(data);
         } catch (error) {

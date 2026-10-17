@@ -9,7 +9,7 @@ Auth: reads the access_token cookie set by /login.
 Events are stored in the Supabase `events` table.
 """
 
-import math
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -140,28 +140,20 @@ async def post_event(
 
 
 @router.get("")
-async def list_events(
-    lat: float,
-    lon: float,
-    radius_m: float = 1000,
-    tag: str | None = None,
-) -> list[dict]:
-    """
-    Return active events within radius_m metres of (lat, lon).
-    Filter by tag if provided.
-    """
+async def list_events(tag: str | None = None) -> list[dict]:
+    """Return all active events, optionally filtered by tag."""
     response = supabase.table("events").select("*").execute()
-    results = []
-    for event in response.data:
-        if _is_expired(event):
-            continue
-        if tag and event["tag"] != tag:
-            continue
-        dist = _haversine_m(lat, lon, event["lat"], event["lon"])
-        if dist <= radius_m:
-            results.append({**_public(event), "distance_m": round(dist)})
-
-    results.sort(key=lambda e: e["distance_m"])
+    rows = response.data or []
+    results = [
+        _public(event)
+        for event in rows
+        if not _is_expired(event) and (not tag or event.get("tag") == tag)
+    ]
+    if not results:
+        logging.warning(
+            "No events returned: Supabase rows=%d sample_keys=%s",
+            len(rows), list(rows[0].keys()) if rows else [],
+        )
     return results
 
 
@@ -246,17 +238,19 @@ def _get_event(event_id: str) -> dict:
 
 def _public(event: dict) -> dict:
     """Strip internal fields before sending to client."""
+    reports_present = event.get("reports_present")
     return {
         "id":               event["id"],
-        "title":            event["title"],
-        "description":      event["description"],
-        "tag":              event["tag"],
-        "lat":              event["lat"],
-        "lon":              event["lon"],
-        "expires_at":       event["expires_at"],
-        "posted_at":        event["posted_at"],
-        "thumbs_up":        event["thumbs_up"],
-        "thumbs_down":      event["thumbs_down"],
-        "confirmed":        event["confirmed"],
-        "reports_present":  len(event["reports_present"]),
+        "title":            event.get("title", event.get("name", "")),
+        "description":      event.get("description", ""),
+        "tag":              event.get("tag", ""),
+        "lat":              event.get("lat", event.get("latitude", event.get("latitutde"))),
+        "lon":              event.get("lon", event.get("longitude")),
+        "expires_at":       event.get("expires_at"),
+        "posted_at":        event.get("posted_at"),
+        "thumbs_up":        event.get("thumbs_up", 0),
+        "thumbs_down":      event.get("thumbs_down", 0),
+        "confirmed":        event.get("confirmed", False),
+        "reports_present":  len(reports_present) if isinstance(reports_present, list) else reports_present or 0,
+
     }
