@@ -7,12 +7,12 @@ $ fastapi dev src/api.py
 # api.py
 import re
 from typing import Any
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import Cookie, FastAPI, HTTPException, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 from passlib.context import CryptContext
 from mailer import send_verification_email, verify_token
-from auth import ACCESS_TOKEN_MINUTES, create_access_token
+from auth import ACCESS_TOKEN_MINUTES, create_access_token, get_current_user as validate_access_token
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -73,6 +73,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 app = FastAPI()
+
+
+@app.get("/auth/me")
+async def current_user(access_token: str | None = Cookie(default=None)) -> dict[str, str]:
+    """Validate the access-token cookie and return its authenticated subject."""
+    email = validate_access_token(access_token)
+    return {"email": email}
 
 
 @app.get("/users")
