@@ -74,8 +74,8 @@ function App() {
           </button>
         </header>
 
-        <div style={{ padding: "12px", backgroundColor: "#eff4f9", borderRadius: "8px", fontSize: "0.9rem", color: "#4a4a4a", marginBottom: "20px" }}>
-          🛠️ <em>Pop up!</em>
+        <div style={{ padding: "12px", backgroundColor: "#eff4f9", borderRadius: "16px", fontSize: "1.2rem", color: "#0a0a0a", marginBottom: "20px" }}>
+           <em>Pop up!</em>
         </div>
 
         <main>

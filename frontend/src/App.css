@@ -147,8 +147,8 @@ body {
 /* Event Card Dimensions & Styling matching your screenshot */
 /* Uniform card sizing */
 .event-card-container {
-  background-color: #00030f;
-  border: 1px solid #020109;
+  background-color: #f2f5fa;
+  border: 5px solid #699df7;
   border-radius: 8px;
   padding: 15px;
   
@@ -158,7 +158,7 @@ body {
   min-height: 160px; /* Ensures all cards are at least this tall */
   box-sizing: border-box;
   text-align: left;
-  color: #ffffff;
+  color: #070707;
   
   /* Prevents content from overflowing if text gets too long */
   overflow: hidden; 
