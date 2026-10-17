@@ -1,11 +1,19 @@
+@import url('https://googleapis.com');
+
 :root {
-	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	font-family: 'Comfortaa', sans-serif;
 	line-height: 1.5;
 	font-weight: 400;
 
 	color-scheme: light dark;
 	color: rgba(255, 255, 255, 0.87);
-	background-color: #242424;
+
+	/* Clean background setup pointing explicitly to your updated image file asset */
+	background-image: url('./assets/pixelocean.avif');
+	background-size: cover;
+	background-position: center;
+	background-attachment: fixed;
+	background-repeat: no-repeat;
 
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
@@ -58,7 +66,11 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
 	:root {
 		color: #213547;
-		background-color: #ffffff;
+		background-image: url('./assets/pixelflower.png');
+		background-size: cover;
+		background-position: center;
+		background-attachment: fixed;
+		background-repeat: no-repeat;
 	}
 	a:hover {
 		color: #747bff;
