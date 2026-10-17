@@ -5,10 +5,21 @@ import LoginForm from "@/components/LoginForm";
 import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
 
 function App() {
-  const [page, setPage] = useState("homepage");
+  const [page, setPage] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((response) => setPage(response.ok ? "homepage" : "login"))
+      .catch(() => setPage("login"));
+  }, []);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("Anteater");
+
+  async function logout() {
+    await fetch("/api/logout", { method: "POST" });
+    setPage("login");
+  }
 
   // Fetch the events from FastAPI server when page switches to homepage
   useEffect(() => {
@@ -30,6 +41,8 @@ function App() {
     }
   }, [page]);
 
+  if (page === null) return null;
+
   if (page === "signup") {
     return <SignupForm onSwitchToLogin={() => setPage("login")} onSignupSuccess={() => setPage("homepage")} />;
   }
@@ -43,7 +56,7 @@ function App() {
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "1.8rem" }}>Hello, {username}! 👋</h1>
-          <button onClick={() => setPage("login")} style={{ padding: "8px 16px", backgroundColor: "#efc5eb", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+          <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#efc5eb", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
             Logout
           </button>
         </header>

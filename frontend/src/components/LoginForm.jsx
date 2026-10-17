@@ -9,7 +9,7 @@ function validate({ email, password }) {
   return errors;
 }
 
-export default function LoginForm({ onSwitchToSignup }) {
+export default function LoginForm({ onSwitchToSignup, onLoginSuccess }) {
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
@@ -36,6 +36,7 @@ export default function LoginForm({ onSwitchToSignup }) {
         body: JSON.stringify(form),
       });
       if (res.status === 200) {
+        onLoginSuccess?.();
         setStatus("success");
       } else {
         const data = await res.json().catch(() => ({}));
