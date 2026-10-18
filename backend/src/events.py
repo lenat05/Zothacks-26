@@ -28,7 +28,8 @@ TAGS = {"free food", "free merch", "discounts", "career development"}
 
 # thresholds
 CONFIRM_RADIUS_M = 20   # reports must be within this radius of the event
-CONFIRM_COUNT    = 3     # reports needed to mark event "confirmed"
+CONFIRM_COUNT    = 3     # net recent reports needed to confirm/remove an event
+REPORT_WINDOW_MINUTES = 30
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,18 @@ def _report_list(value: Any) -> list[dict]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict) and item.get("id")]
+
+
+def _recent_reports(reports: list[dict]) -> list[dict]:
+    cutoff = datetime.now(timezone.utc).timestamp() - REPORT_WINDOW_MINUTES * 60
+    recent = []
+    for report in reports:
+        try:
+            if datetime.fromisoformat(report["created_at"]).timestamp() >= cutoff:
+                recent.append(report)
+        except (KeyError, TypeError, ValueError):
+            pass
+    return recent
 
 
 # ---------------------------------------------------------------------------
@@ -213,8 +226,18 @@ async def report_event(
     # Remove any previous report from this user
     present = [report for report in present if str(report["id"]) != user_id]
     gone = [report for report in gone if str(report["id"]) != user_id]
-    (present if list_key == "present" else gone).append({"id": user_id})
-    event["confirmed"] = len(present) >= CONFIRM_COUNT
+    (present if list_key == "present" else gone).append({
+        "id": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    recent_present = _recent_reports(present)
+    recent_gone = _recent_reports(gone)
+    report_score = len(recent_present) - len(recent_gone)
+    if report_score <= -CONFIRM_COUNT:
+        supabase.table("events").delete().eq("id", event_id).execute()
+        return {"confirmed": False, "deleted": True, "reports_present": len(recent_present), "reports_gone": len(recent_gone)}
+
+    event["confirmed"] = report_score >= CONFIRM_COUNT
     supabase.table("events").update({
         "reports_present": present,
         "reports_gone": gone,
@@ -223,8 +246,8 @@ async def report_event(
 
     return {
         "confirmed": event["confirmed"],
-        "reports_present": len(present),
-        "reports_gone": len(gone),
+        "reports_present": len(recent_present),
+        "reports_gone": len(recent_gone),
     }
 
 
@@ -258,14 +281,12 @@ async def rate_event(
         current_score = (poster.data[0].get("score") or 0) if poster.data else 0
         supabase.table("users").update({"score": current_score + new_score - old_score}).eq("id", poster_id).execute()
 
-    confirmed = len(voters_up) - len(voters_down) >= CONFIRM_COUNT
     supabase.table("events").update({
         "thumbs_up": list(voters_up.values()),
         "thumbs_down": list(voters_down.values()),
-        "confirmed": confirmed,
     }).eq("id", event_id).execute()
 
-    return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down), "confirmed": confirmed}
+    return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down), "confirmed": event.get("confirmed", False)}
 
 
 # ---------------------------------------------------------------------------
@@ -286,8 +307,8 @@ def _public(event: dict) -> dict:
     """Strip internal fields before sending to client."""
     voters_up = _id_list(event.get("thumbs_up"))
     voters_down = _id_list(event.get("thumbs_down"))
-    reports_present = _report_list(event.get("reports_present"))
-    reports_gone = _report_list(event.get("reports_gone"))
+    reports_present = _recent_reports(_report_list(event.get("reports_present")))
+    reports_gone = _recent_reports(_report_list(event.get("reports_gone")))
     return {
         "id":               event["id"],
         "title":            event.get("title", event.get("name", "")),
