@@ -5,8 +5,47 @@ import LoginForm from "@/components/LoginForm";
 import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
 import EventForm from "@/components/EventForm";
 
-// Your original project plan category tags matching database layouts
-const EVENT_TAGS = ["free_food", "merch", "career", "music", "free_merch", "discounts"];
+const EVENT_TAGS = ["free food", "free merch", "discounts", "career development"];
+
+function TagPreferences({ onSaved }) {
+  const [tags, setTags] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggle = (tag) => setTags((selected) => selected.includes(tag)
+    ? selected.filter((item) => item !== tag)
+    : [...selected, tag]);
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const response = await fetch("/api/users/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    if (response.ok) onSaved();
+    else setError("Could not save preferences. Try again.");
+    setSaving(false);
+  };
+
+  return (
+    <form className="event-form preferences-form" onSubmit={save}>
+      <h2>What should we notify you about?</h2>
+      {EVENT_TAGS.map((tag) => (
+        <label key={tag} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <input type="checkbox" checked={tags.includes(tag)} onChange={() => toggle(tag)} />
+          {tag}
+        </label>
+      ))}
+      {error && <p className="auth-error">{error}</p>}
+      <button className="primary-button" type="submit" disabled={saving}>
+        {saving ? "Saving…" : "Save preferences"}
+      </button>
+    </form>
+  );
+}
 
 function App() {
   const [page, setPage] = useState(null);
@@ -26,6 +65,9 @@ function App() {
   const [username, setUsername] = useState("Anteater");
   const [selectedTag, setSelectedTag] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(
+    () => new URLSearchParams(window.location.search).get("verified") === "1"
+  );
 
   const fetchEvents = useCallback(async (tag = selectedTag) => {
     setLoading(true);
@@ -73,6 +115,13 @@ function App() {
   if (page === "homepage") {
     return (
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
+        {showPreferences && (
+          <TagPreferences onSaved={() => {
+            setShowPreferences(false);
+            window.history.replaceState({}, "", "/");
+          }} />
+        )}
+
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#000000" }}>Hello, {username}!</h1>
           {/* UPDATED: Logout button background color is now clean white with a subtle border */}

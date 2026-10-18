@@ -21,6 +21,7 @@ from pydantic import BaseModel, field_validator
 
 from api import supabase
 from auth import get_current_user
+from mailer import send_event_notification_emails
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -237,12 +238,30 @@ async def report_event(
         supabase.table("events").delete().eq("id", event_id).execute()
         return {"confirmed": False, "deleted": True, "reports_present": len(recent_present), "reports_gone": len(recent_gone)}
 
+    was_confirmed = bool(event.get("confirmed", False))
     event["confirmed"] = report_score >= CONFIRM_COUNT
     supabase.table("events").update({
         "reports_present": present,
         "reports_gone": gone,
         "confirmed": event["confirmed"],
     }).eq("id", event_id).execute()
+
+    if event["confirmed"] and not was_confirmed:
+        users = supabase.table("users").select("name, email, tag").execute().data or []
+        recipients = []
+        for user in users:
+            tags = user.get("tag", [])
+            if isinstance(tags, str):
+                try:
+                    tags = json.loads(tags)
+                except json.JSONDecodeError:
+                    tags = []
+            if isinstance(tags, list) and event.get("tag") in tags:
+                recipients.append(user)
+        try:
+            send_event_notification_emails(recipients, event)
+        except Exception:
+            logging.exception("Could not send confirmation notifications for event %s", event_id)
 
     return {
         "confirmed": event["confirmed"],

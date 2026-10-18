@@ -86,6 +86,39 @@ def send_verification_email(email: str, name: str) -> str:
     return token
 
 
+def send_event_notification_emails(recipients: list[dict], event: dict) -> None:
+    """Notify users whose selected tags match a newly confirmed event."""
+    if not recipients:
+        return
+
+    title = event.get("title", event.get("name", "Campus update"))
+    tag = event.get("tag", "")
+    description = event.get("description", "")
+    location = f"{event.get('latitude', event.get('lat', ''))}, {event.get('longitude', event.get('lon', ''))}"
+    subject = f"Confirmed ZotHacks update: {title}"
+    with _smtp_connection() as conn:
+        for recipient in recipients:
+            email = recipient.get("email")
+            if not email:
+                continue
+            name = escape(str(recipient.get("name") or "Anteater"))
+            plain = f"Hi {recipient.get('name') or 'Anteater'},\n\n{title} ({tag}) was confirmed near {location}.\n{description}"
+            html = f"<p>Hi <strong>{name}</strong>,</p><p><strong>{escape(title)}</strong> ({escape(tag)}) was confirmed near {escape(location)}.</p><p>{escape(description)}</p>"
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = _sender()
+            msg["To"] = email
+            msg.attach(MIMEText(plain, "plain"))
+            msg.attach(MIMEText(html, "html"))
+            conn.sendmail(msg["From"], [email], msg.as_string())
+
+
+def _sender() -> str:
+    smtp_user = os.environ["SMTP_USER"]
+    display_name, sender_address = parseaddr(os.environ.get("SMTP_FROM", ""))
+    return formataddr((display_name or "ZotHacks", sender_address if "@" in sender_address else smtp_user))
+
+
 def verify_token(token: str) -> str | None:
     """
     Consume a verification token. Returns the associated email, or None if invalid.

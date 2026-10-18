@@ -251,6 +251,7 @@ body {
   text-align: left;
 }
 .event-form-heading { margin-bottom: 3px; }
+.preferences-form { max-width: 420px; margin: 0 auto 20px; }
 .event-form label { display: grid; gap: 6px; color: #53647c; font-size: .78rem; font-weight: 700; }
 .event-form input, .event-form textarea, .event-form select {
   width: 100%;

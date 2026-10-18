@@ -66,6 +66,20 @@ class ResendVerification(BaseModel):
     email: str
 
 
+TAGS = {"free food", "free merch", "discounts", "career development"}
+
+
+class UserPreferences(BaseModel):
+    tags: list[str]
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, values: list[str]) -> list[str]:
+        if any(tag not in TAGS for tag in values):
+            raise ValueError(f"Tags must be selected from: {', '.join(sorted(TAGS))}")
+        return list(dict.fromkeys(values))
+
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -106,6 +120,7 @@ async def signup(user: UserCreate) -> dict[str, str]:
         "email": user.email,
         "password": hash_password(user.password),
         "is_verified": False,
+        "tag": [],
     }).execute()
 
     token = send_verification_email(email=user.email, name=user.name)
@@ -126,7 +141,26 @@ async def verify_email(token: str) -> dict[str, str]:
         )
 
     supabase.table("users").update({"is_verified": True}).eq("email", email).execute()
-    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url="/?verified=1", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        key="access_token",
+        value=create_access_token(user_email=email),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_MINUTES * 60,
+    )
+    return response
+
+
+@app.patch("/users/preferences")
+async def update_preferences(
+    preferences: UserPreferences,
+    access_token: str | None = Cookie(default=None),
+) -> dict[str, list[str]]:
+    email = validate_access_token(access_token)
+    supabase.table("users").update({"tag": preferences.tags}).eq("email", email).execute()
+    return {"tags": preferences.tags}
 
 
 @app.post("/resend-verification")
