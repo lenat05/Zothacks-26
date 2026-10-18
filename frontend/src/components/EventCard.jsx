@@ -17,14 +17,22 @@ export default function EventCard({ event }) {
       <p>{event.description}</p>
       <p className="event-location">Location: {event.lat}, {event.lon}</p>
       {mapUrl && (
-        <iframe
-          title={`Map showing ${event.title}`}
-          src={mapUrl}
-          width="100%"
-          height="220"
-          loading="lazy"
-          style={{ border: 0, borderRadius: 8 }}
-        />
+        <a
+          href={`https://www.google.com/maps?q=${lat},${lon}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${event.title} in Google Maps`}
+          style={{ display: "block", cursor: "pointer" }}
+        >
+          <iframe
+            title={`Map showing ${event.title}`}
+            src={mapUrl}
+            width="100%"
+            height="220"
+            loading="lazy"
+            style={{ border: 0, borderRadius: 8, pointerEvents: "none" }}
+          />
+        </a>
       )}
       <span className="event-tag">{event.tag}</span>
     </article>
