@@ -7,7 +7,7 @@ import jwt
 from fastapi import HTTPException, status
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = 15
+ACCESS_TOKEN_MINUTES = 7 * 24 * 60
 
 
 def _jwt_secret() -> str:

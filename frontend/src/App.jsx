@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import SignupForm from "@/components/SignupForm";
 import LoginForm from "@/components/LoginForm";
 import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
+import EventForm from "@/components/EventForm";
+
+const EVENT_TAGS = ["free food", "free merch", "discounts", "career development"];
 
 function App() {
   const [page, setPage] = useState(null);
@@ -20,6 +23,23 @@ function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("Anteater");
+  const [selectedTag, setSelectedTag] = useState("");
+  const [showEventForm, setShowEventForm] = useState(false);
+
+  const fetchEvents = useCallback(async (tag = selectedTag) => {
+    setLoading(true);
+    try {
+      const query = tag ? `?tag=${encodeURIComponent(tag)}` : "";
+      const response = await fetch(`/api/events${query}`);
+      if (!response.ok) throw new Error("Couldn’t load events.");
+      setEvents(await response.json());
+    } catch (error) {
+      console.error("Could not load database feed:", error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTag]);
 
   async function onLoginSuccess() {
     const response = await fetch("/api/auth/me");
@@ -35,30 +55,9 @@ function App() {
   // Fetch the events from FastAPI server when page switches to homepage
   useEffect(() => {
     if (page === "homepage") {
-      async function fetchFeedData() {
-        try {
-          setLoading(true);
-          const { latitude = 33.6405, longitude = -117.8443 } = await new Promise((resolve) => {
-            if (!navigator.geolocation) return resolve({});
-            navigator.geolocation.getCurrentPosition(
-              ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
-              () => resolve({}),
-              { timeout: 3000 },
-            );
-          });
-          const response = await fetch(`/api/events?lat=${latitude}&lon=${longitude}`);
-          const data = await response.json();
-          setEvents(data);
-        } catch (error) {
-          console.error("Could not load database feed:", error);
-          setEvents([]); // Clears events on failure to trigger skeleton/empty state
-        } finally {
-          setLoading(false);
-        }
-      }
-      fetchFeedData();
+      fetchEvents();
     }
-  }, [page]);
+  }, [page, fetchEvents]);
 
   if (page === null) return null;
 
@@ -85,7 +84,23 @@ function App() {
         </div>
 
         <main>
-          <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#213547" }}>Live Updates</h2>
+          <div className="feed-heading">
+            <div><span className="eyebrow">AROUND CAMPUS</span><h2>Live updates</h2></div>
+            <button className="primary-button add-event-button" type="button" onClick={() => setShowEventForm((visible) => !visible)}>
+              {showEventForm ? "Close form" : "+ Post an event"}
+            </button>
+          </div>
+
+          {showEventForm && <EventForm onCancel={() => setShowEventForm(false)} onCreated={(created) => {
+            setShowEventForm(false);
+            setSelectedTag("");
+            setEvents((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+          }} />}
+
+          <div className="tag-filters" aria-label="Filter events by category">
+            <button className={!selectedTag ? "active" : ""} type="button" onClick={() => setSelectedTag("")}>All updates</button>
+            {EVENT_TAGS.map((tag) => <button key={tag} className={selectedTag === tag ? "active" : ""} type="button" onClick={() => setSelectedTag(tag)}>{tag}</button>)}
+          </div>
           
           {/* ---> PUT STEP 2 CODE RIGHT HERE <--- */}
           {loading ? (
@@ -105,7 +120,7 @@ function App() {
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
               {events.map((eventItem, index) => (
                 <div className="event-card-container" key={eventItem.id || index}>
-                  <EventCard event={eventItem} />
+                  <EventCard event={eventItem} onChange={(updates) => setEvents((current) => current.map((item) => item.id === eventItem.id ? { ...item, ...updates } : item))} />
                 </div>
               ))}
             </div>
