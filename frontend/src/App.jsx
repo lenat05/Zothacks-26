@@ -5,7 +5,8 @@ import LoginForm from "@/components/LoginForm";
 import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
 import EventForm from "@/components/EventForm";
 
-const EVENT_TAGS = ["free food", "free merch", "discounts", "career development"];
+// Your original project plan category tags matching database layouts
+const EVENT_TAGS = ["free_food", "merch", "career", "music", "free_merch", "discounts"];
 
 function App() {
   const [page, setPage] = useState(null);
@@ -73,15 +74,16 @@ function App() {
     return (
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
-          <h1 style={{ margin: 0, fontSize: "1.8rem" }}>Hello, {username}! </h1>
-          <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#efc5eb", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+          <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#000000" }}>Hello, {username}!</h1>
+          {/* UPDATED: Logout button background color is now clean white with a subtle border */}
+          <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#ffffff", color: "#333333", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}>
             Logout
           </button>
         </header>
 
         <main>
-          <div className="feed-heading">
-            <div><span className="eyebrow">AROUND CAMPUS</span><h2>Live updates</h2></div>
+          <div className="feed-heading" style={{ marginBottom: "20px" }}>
+            <div><span className="eyebrow" style={{ color: "#000000" }}>AROUND CAMPUS</span><h2 style={{ color: "#000000" }}>Live updates</h2></div>
             <button className="primary-button add-event-button" type="button" onClick={() => setShowEventForm((visible) => !visible)}>
               {showEventForm ? "Close form" : "+ Post an event"}
             </button>
@@ -93,12 +95,47 @@ function App() {
             setEvents((current) => [created, ...current.filter((item) => item.id !== created.id)]);
           }} />}
 
-          <div className="tag-filters" aria-label="Filter events by category">
-            <button className={!selectedTag ? "active" : ""} type="button" onClick={() => setSelectedTag("")}>All updates</button>
-            {EVENT_TAGS.map((tag) => <button key={tag} className={selectedTag === tag ? "active" : ""} type="button" onClick={() => setSelectedTag(tag)}>{tag}</button>)}
+          {/* Yellow background highlight capsule tag filtering bar loops */}
+          <div className="tag-filters" aria-label="Filter events by category" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "25px" }}>
+            <button 
+              type="button" 
+              onClick={() => setSelectedTag("")}
+              style={{ 
+                padding: "8px 14px", 
+                borderRadius: "20px", 
+                border: "1px solid #ccc", 
+                cursor: "pointer", 
+                backgroundColor: !selectedTag ? '#ffd700' : '#ffffff', 
+                color: '#333', 
+                fontWeight: "bold",
+                fontFamily: "inherit"
+              }}
+            >
+              all
+            </button>
+            {EVENT_TAGS.map((tag) => (
+              <button 
+                key={tag} 
+                type="button" 
+                onClick={() => setSelectedTag(tag)}
+                style={{ 
+                  padding: "8px 14px", 
+                  borderRadius: "20px", 
+                  border: "1px solid #ccc", 
+                  cursor: "pointer", 
+                  backgroundColor: selectedTag === tag ? '#ffd700' : '#ffffff', 
+                  color: '#333', 
+                  fontSize: "0.9rem",
+                  fontFamily: "inherit",
+                  fontWeight: selectedTag === tag ? "bold" : "normal"
+                }}
+              >
+                {tag.replace('_', ' ')}
+              </button>
+            ))}
           </div>
           
-          {/* ---> PUT STEP 2 CODE RIGHT HERE <--- */}
+          {/* Loading and Event Mapping State */}
           {loading ? (
             /* Loading Skeleton Placeholders */
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", width: "100%" }}>
@@ -111,11 +148,11 @@ function App() {
               ))}
             </div>
           ) : events.length === 0 ? (
-            <p>No active events right now.</p>
+            <p style={{ color: "#fff" }}>No active events right now.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
               {events.map((eventItem, index) => (
-                <div className="event-card-container" key={eventItem.id || index}>
+                <div className="event-card-container" key={eventItem.id || index} style={{ width: "100%" }}>
                   <EventCard event={eventItem} onChange={(updates) => setEvents((current) => current.map((item) => item.id === eventItem.id ? { ...item, ...updates } : item))} />
                 </div>
               ))}
@@ -132,4 +169,3 @@ function App() {
 }
 
 export default App;
- 
