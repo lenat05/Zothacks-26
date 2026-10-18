@@ -6,10 +6,11 @@ $ fastapi dev src/api.py
 
 # api.py
 import re
+import random
 from typing import Any
 from fastapi import Cookie, FastAPI, HTTPException, Response, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from passlib.context import CryptContext
 from mailer import send_verification_email, verify_token
 from auth import ACCESS_TOKEN_MINUTES, create_access_token, get_current_user as validate_access_token
@@ -22,6 +23,19 @@ load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://sczhtmnffsvgwsxgyugt.supabase.co/")
 SUPABASE_SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+
+CARD_VALUES = {"A": 11, "K": 10, "Q": 10, "J": 10}
+
+def card_value(card: str) -> int:
+    return int(card[:-1]) if card[:-1].isdigit() else CARD_VALUES[card[0]]
+
+def hand_value(cards: list[str]) -> int:
+    total = sum(card_value(card) for card in cards)
+    aces = sum(card.startswith("A") for card in cards)
+    while total > 21 and aces:
+        total -= 10
+        aces -= 1
+    return total
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -66,6 +80,22 @@ class ResendVerification(BaseModel):
     email: str
 
 
+class GambleRequest(BaseModel):
+    game: str
+    wager: int
+    choice: int | None = None
+    bet_type: str = "number"
+    selected: list[int] = Field(default_factory=list)
+    mines: list[int] = Field(default_factory=list)
+
+    @field_validator("wager")
+    @classmethod
+    def validate_wager(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("Wager must be at least 1 point")
+        return value
+
+
 TAGS = {"free food", "free merch", "discounts", "career development"}
 
 
@@ -90,11 +120,12 @@ app = FastAPI()
 
 
 @app.get("/auth/me")
-async def current_user(access_token: str | None = Cookie(default=None)) -> dict[str, str]:
+async def current_user(access_token: str | None = Cookie(default=None)) -> dict[str, Any]:
     """Validate the access-token cookie and return its authenticated subject."""
     email = validate_access_token(access_token)
-    user = supabase.table("users").select("name").eq("email", email).execute()
-    return {"email": email, "name": user.data[0].get("name") or "Anteater" if user.data else "Anteater"}
+    user = supabase.table("users").select("name, score").eq("email", email).execute()
+    record = user.data[0] if user.data else {}
+    return {"email": email, "name": record.get("name") or "Anteater", "points": record.get("score") or 0}
 
 
 @app.get("/users")
@@ -174,6 +205,51 @@ async def resend_verification(user: ResendVerification) -> dict[str, str]:
 
     send_verification_email(email=user.email, name=existing_user["name"])
     return {"message": "Verification email sent."}
+
+
+@app.post("/gamble")
+async def gamble(bet: GambleRequest, access_token: str | None = Cookie(default=None)) -> dict[str, Any]:
+    email = validate_access_token(access_token)
+    if bet.game not in {"roulette", "blackjack", "mines"}:
+        raise HTTPException(400, "Unknown game")
+    row = supabase.table("users").select("score").eq("email", email).execute()
+    points = int((row.data[0] if row.data else {}).get("score") or 0)
+    if bet.wager > points:
+        raise HTTPException(400, "Not enough points")
+
+    payout = 0
+    won = False
+    result: dict[str, Any] = {}
+    if bet.game == "roulette":
+        rolled = random.randint(0, 36)
+        red_numbers = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
+        won = (bet.bet_type == "number" and bet.choice == rolled) or (bet.bet_type == "red" and rolled in red_numbers) or (bet.bet_type == "black" and rolled != 0 and rolled not in red_numbers)
+        payout = bet.wager * (35 if bet.bet_type == "number" else 2) if won else 0
+        result["rolled"] = rolled
+        result["color"] = "green" if rolled == 0 else "red" if rolled in red_numbers else "black"
+    elif bet.game == "mines":
+        selected = {tile for tile in bet.selected if 0 <= tile < 25}
+        mines = set(bet.mines) if len(bet.mines) == 3 else set(random.sample(range(25), 3))
+        won = bool(selected) and not selected.intersection(mines)
+        payout = int(bet.wager * (1 + len(selected) * 0.3)) if won else 0
+        result["safe"] = won
+        result["mines"] = list(mines)
+    else:
+        player = bet.choice or 0
+        dealer_cards = random.sample(["A♠", "K♥", "Q♣", "J♦", "10♠", "9♥", "8♣", "7♦", "6♠", "5♥"], 2)
+        dealer = hand_value(dealer_cards)
+        won = 0 < player <= 21 and player > dealer
+        push = 0 < player <= 21 and player == dealer
+        payout = bet.wager * 2 if won else bet.wager if push else 0
+        result["message"] = f"You {player} · Dealer {dealer}"
+        result["dealer"] = dealer
+        result["dealerCards"] = dealer_cards
+        result["push"] = push
+
+    new_points = points - bet.wager + payout
+    # ponytail: read/update is not atomic; use a database RPC before real-money stakes.
+    supabase.table("users").update({"score": new_points}).eq("email", email).execute()
+    return {"points": new_points, "payout": payout, "net": payout - bet.wager, "won": won, **result}
 
 
 @app.post("/logout")
