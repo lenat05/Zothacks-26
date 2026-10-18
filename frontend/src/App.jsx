@@ -119,19 +119,28 @@ function App() {
   if (page === "homepage") {
     return (
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
+          <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#000000" }}>Hello, {username}!</h1>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={() => setShowPreferences((visible) => !visible)}
+              style={{ padding: "8px 16px", backgroundColor: showPreferences ? "#e2ebff" : "#ffffff", color: "#333333", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}
+            >
+              {showPreferences ? "Close settings" : "⚙ Settings"}
+            </button>
+            <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#ffffff", color: "#333333", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}>
+              Logout
+            </button>
+          </div>
+        </header>
+
         {showPreferences && (
           <TagPreferences onSaved={() => {
             setShowPreferences(false);
             window.history.replaceState({}, "", "/");
           }} />
         )}
-
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
-          <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#000000" }}>Hello, {username}!</h1>
-          <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#ffffff", color: "#333333", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}>
-            Logout
-          </button>
-        </header>
 
         <main>
           <div className="feed-heading" style={{ marginBottom: "20px" }}>
@@ -189,7 +198,6 @@ function App() {
 
           {/* Loading and Event Mapping State */}
           {loading ? (
-            /* Loading Skeleton Placeholders */
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", width: "100%" }}>
               {[1, 2, 3].map((n) => (
                 <div className="event-card-container skeleton-card" key={n}>
