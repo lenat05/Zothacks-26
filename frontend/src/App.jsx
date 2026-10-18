@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import SignupForm from "@/components/SignupForm";
 import LoginForm from "@/components/LoginForm";
-import EventCard from "@/components/EventCard"; // <-- 1. Import your EventCard component
+import EventCard from "@/components/EventCard";
 import EventForm from "@/components/EventForm";
 
 const EVENT_TAGS = ["free food", "free merch", "discounts", "career development"];
@@ -33,12 +33,16 @@ function TagPreferences({ onSaved }) {
   return (
     <form className="event-form preferences-form" onSubmit={save}>
       <h2>What should we notify you about?</h2>
-      {EVENT_TAGS.map((tag) => (
-        <label key={tag} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <input type="checkbox" checked={tags.includes(tag)} onChange={() => toggle(tag)} />
-          {tag}
-        </label>
-      ))}
+      {EVENT_TAGS.map((tag) => {
+        const selected = tags.includes(tag);
+        return (
+          <label key={tag} className={`pref-option${selected ? " selected" : ""}`}>
+            <input type="checkbox" checked={selected} onChange={() => toggle(tag)} />
+            <span className="pref-name">{tag}</span>
+            <span className="pref-check" aria-hidden="true">{selected ? "✓" : ""}</span>
+          </label>
+        );
+      })}
       {error && <p className="auth-error">{error}</p>}
       <button className="primary-button" type="submit" disabled={saving}>
         {saving ? "Saving…" : "Save preferences"}
@@ -124,7 +128,6 @@ function App() {
 
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid #eaeaea", paddingBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#000000" }}>Hello, {username}!</h1>
-          {/* UPDATED: Logout button background color is now clean white with a subtle border */}
           <button onClick={logout} style={{ padding: "8px 16px", backgroundColor: "#ffffff", color: "#333333", border: "1px solid #ccc", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}>
             Logout
           </button>
@@ -146,16 +149,16 @@ function App() {
 
           {/* Yellow background highlight capsule tag filtering bar loops */}
           <div className="tag-filters" aria-label="Filter events by category" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "25px" }}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setSelectedTag("")}
-              style={{ 
-                padding: "8px 14px", 
-                borderRadius: "20px", 
-                border: "1px solid #ccc", 
-                cursor: "pointer", 
-                backgroundColor: !selectedTag ? '#ffd700' : '#ffffff', 
-                color: '#333', 
+              style={{
+                padding: "8px 14px",
+                borderRadius: "20px",
+                border: "1px solid #ccc",
+                cursor: "pointer",
+                backgroundColor: !selectedTag ? '#ffd700' : '#ffffff',
+                color: '#333',
                 fontWeight: "bold",
                 fontFamily: "inherit"
               }}
@@ -163,17 +166,17 @@ function App() {
               all
             </button>
             {EVENT_TAGS.map((tag) => (
-              <button 
-                key={tag} 
-                type="button" 
+              <button
+                key={tag}
+                type="button"
                 onClick={() => setSelectedTag(tag)}
-                style={{ 
-                  padding: "8px 14px", 
-                  borderRadius: "20px", 
-                  border: "1px solid #ccc", 
-                  cursor: "pointer", 
-                  backgroundColor: selectedTag === tag ? '#ffd700' : '#ffffff', 
-                  color: '#333', 
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "20px",
+                  border: "1px solid #ccc",
+                  cursor: "pointer",
+                  backgroundColor: selectedTag === tag ? '#ffd700' : '#ffffff',
+                  color: '#333',
                   fontSize: "0.9rem",
                   fontFamily: "inherit",
                   fontWeight: selectedTag === tag ? "bold" : "normal"
@@ -183,7 +186,7 @@ function App() {
               </button>
             ))}
           </div>
-          
+
           {/* Loading and Event Mapping State */}
           {loading ? (
             /* Loading Skeleton Placeholders */
@@ -212,7 +215,7 @@ function App() {
     );
   }
 
- return page === "signup"
+  return page === "signup"
     ? <SignupForm onSwitchToLogin={() => setPage("login")} />
     : <LoginForm onSwitchToSignup={() => setPage("signup")} />;
 }

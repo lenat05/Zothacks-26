@@ -300,3 +300,72 @@ body {
   .event-actions { flex-direction: column; }
   .coordinate-fields { grid-template-columns: 1fr; }
 }
+/* Preference option cards */
+.event-form .pref-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 2px solid #d9e2f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(36, 61, 100, 0.08);
+  color: #213547;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.event-form .pref-option:hover {
+  border-color: #89a9e7;
+  box-shadow: 0 4px 12px rgba(36, 61, 100, 0.12);
+}
+
+.event-form .pref-option:active {
+  transform: scale(0.99);
+}
+
+.event-form .pref-option.selected {
+  border-color: #315ba8;
+  box-shadow: 0 0 0 3px rgba(49, 91, 168, 0.15);
+}
+
+/* Hide the native checkbox but keep it keyboard-accessible */
+.event-form .pref-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.event-form .pref-option:has(input:focus-visible) {
+  outline: 3px solid #89a9e7;
+  outline-offset: 2px;
+}
+
+/* Round check indicator on the right */
+.pref-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #c5d1e5;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #ffffff;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.pref-option.selected .pref-check {
+  background: #315ba8;
+  border-color: #315ba8;
+}
