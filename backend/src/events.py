@@ -40,6 +40,14 @@ def _get_current_user(access_token: str | None) -> str:
     return get_current_user(access_token)
 
 
+def _get_user_id(email: str) -> str:
+    response = supabase.table("users").select("id").eq("email", email).execute()
+    user_id = response.data[0].get("id") if response.data else None
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return str(user_id)
+
+
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance in metres between two lat/lon points."""
     R = 6_371_000
@@ -56,18 +64,8 @@ def _is_expired(event: dict) -> bool:
     return datetime.fromisoformat(event["expires_at"]) < datetime.now(timezone.utc)
 
 
-def _json_object(value: Any) -> dict:
-    """Read a JSONB object, tolerating JSON strings and missing legacy values."""
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except json.JSONDecodeError:
-            return {}
-    return value if isinstance(value, dict) else {}
-
-
-def _string_list(value: Any) -> list[str]:
-    """Return a clean string list from a JSONB array."""
+def _id_list(value: Any) -> list[dict]:
+    """Return JSONB entries containing a user UUID under `id`."""
     if isinstance(value, str):
         try:
             value = json.loads(value)
@@ -75,7 +73,7 @@ def _string_list(value: Any) -> list[str]:
             return []
     if not isinstance(value, list):
         return []
-    return [item for item in value if isinstance(item, str)]
+    return [item for item in value if isinstance(item, dict) and item.get("id")]
 
 
 def _report_list(value: Any) -> list[dict]:
@@ -87,7 +85,7 @@ def _report_list(value: Any) -> list[dict]:
             return []
     if not isinstance(value, list):
         return []
-    return [item for item in value if isinstance(item, dict) and item.get("email")]
+    return [item for item in value if isinstance(item, dict) and item.get("id")]
 
 
 # ---------------------------------------------------------------------------
@@ -153,20 +151,23 @@ async def post_event(
 ) -> dict:
     """Submit a new popup event. Requires login."""
     email = _get_current_user(access_token)
+    user_id = _get_user_id(email)
 
     event_id = str(uuid.uuid4())
     event = {
         "id": event_id,
-        "title": body.title,
+        "name": body.title,
         "description": body.description,
         "tag": body.tag,
-        "lat": body.lat,
-        "lon": body.lon,
+        "latitude": body.lat,
+        "longitude": body.lon,
         "expires_at": body.expires_at,
-        "posted_by": email,
-        "posted_at": datetime.now(timezone.utc).isoformat(),
-        "votes": {"up": [], "down": []},
-        "reports": {"present": [], "gone": []},
+        "created_by": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "thumbs_up": [],
+        "thumbs_down": [],
+        "reports_present": [],
+        "reports_gone": [],
         "confirmed": False,      # True once CONFIRM_COUNT nearby "still here" reports
     }
     response = supabase.table("events").insert(event).execute()
@@ -203,21 +204,20 @@ async def report_event(
     the event is marked confirmed.
     """
     email = _get_current_user(access_token)
+    user_id = _get_user_id(email)
     event = _get_event(event_id)
 
-    reports = _json_object(event.get("reports"))
-    # Migrate the old split columns on first write when handling pre-migration rows.
-    present = _report_list(reports.get("present", event.get("reports_present", [])))
-    gone = _report_list(reports.get("gone", event.get("reports_gone", [])))
+    present = _report_list(event.get("reports_present"))
+    gone = _report_list(event.get("reports_gone"))
     list_key = "present" if body.still_here else "gone"
     # Remove any previous report from this user
-    present = [report for report in present if report["email"] != email]
-    gone = [report for report in gone if report["email"] != email]
-    (present if list_key == "present" else gone).append({"email": email})
+    present = [report for report in present if str(report["id"]) != user_id]
+    gone = [report for report in gone if str(report["id"]) != user_id]
+    (present if list_key == "present" else gone).append({"id": user_id})
     event["confirmed"] = len(present) >= CONFIRM_COUNT
-    event["reports"] = {"present": present, "gone": gone}
     supabase.table("events").update({
-        "reports": event["reports"],
+        "reports_present": present,
+        "reports_gone": gone,
         "confirmed": event["confirmed"],
     }).eq("id", event_id).execute()
 
@@ -236,23 +236,23 @@ async def rate_event(
 ) -> dict:
     """Thumbs up or down. One vote per user (replaces previous vote)."""
     email = _get_current_user(access_token)
+    user_id = _get_user_id(email)
     event = _get_event(event_id)
 
     # Remove previous vote
-    votes = _json_object(event.get("votes"))
-    voters_up = set(_string_list(votes.get("up", event.get("voters_up", []))))
-    voters_down = set(_string_list(votes.get("down", event.get("voters_down", []))))
-    voters_up.discard(email)
-    voters_down.discard(email)
+    voters_up = {str(voter["id"]): voter for voter in _id_list(event.get("thumbs_up"))}
+    voters_down = {str(voter["id"]): voter for voter in _id_list(event.get("thumbs_down"))}
+    voters_up.pop(user_id, None)
+    voters_down.pop(user_id, None)
 
     if body.vote == "up":
-        voters_up.add(email)
+        voters_up[user_id] = {"id": user_id}
     else:
-        voters_down.add(email)
+        voters_down[user_id] = {"id": user_id}
 
-    event["votes"] = {"up": sorted(voters_up), "down": sorted(voters_down)}
     supabase.table("events").update({
-        "votes": event["votes"],
+        "thumbs_up": list(voters_up.values()),
+        "thumbs_down": list(voters_down.values()),
     }).eq("id", event_id).execute()
 
     return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down)}
@@ -274,12 +274,10 @@ def _get_event(event_id: str) -> dict:
 
 def _public(event: dict) -> dict:
     """Strip internal fields before sending to client."""
-    votes = _json_object(event.get("votes"))
-    reports = _json_object(event.get("reports"))
-    voters_up = _string_list(votes.get("up", event.get("voters_up", [])))
-    voters_down = _string_list(votes.get("down", event.get("voters_down", [])))
-    reports_present = _report_list(reports.get("present", event.get("reports_present", [])))
-    reports_gone = _report_list(reports.get("gone", event.get("reports_gone", [])))
+    voters_up = _id_list(event.get("thumbs_up"))
+    voters_down = _id_list(event.get("thumbs_down"))
+    reports_present = _report_list(event.get("reports_present"))
+    reports_gone = _report_list(event.get("reports_gone"))
     return {
         "id":               event["id"],
         "title":            event.get("title", event.get("name", "")),
@@ -288,9 +286,9 @@ def _public(event: dict) -> dict:
         "lat":              event.get("lat", event.get("latitude", event.get("latitutde"))),
         "lon":              event.get("lon", event.get("longitude")),
         "expires_at":       event.get("expires_at"),
-        "posted_at":        event.get("posted_at"),
-        "thumbs_up":        len(voters_up) if votes or event.get("voters_up") else event.get("thumbs_up", 0),
-        "thumbs_down":      len(voters_down) if votes or event.get("voters_down") else event.get("thumbs_down", 0),
+        "created_at":        event.get("created_at"),
+        "thumbs_up":        len(voters_up),
+        "thumbs_down":      len(voters_down),
         "confirmed":        event.get("confirmed", False),
         "reports_present":  len(reports_present),
         "reports_gone":     len(reports_gone),
