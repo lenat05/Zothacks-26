@@ -9,7 +9,9 @@ Auth: reads the access_token cookie set by /login.
 Events are stored in the Supabase `events` table.
 """
 
+import json
 import logging
+import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -52,6 +54,40 @@ def _is_expired(event: dict) -> bool:
     if event.get("expires_at") is None:
         return False
     return datetime.fromisoformat(event["expires_at"]) < datetime.now(timezone.utc)
+
+
+def _json_object(value: Any) -> dict:
+    """Read a JSONB object, tolerating JSON strings and missing legacy values."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _string_list(value: Any) -> list[str]:
+    """Return a clean string list from a JSONB array."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _report_list(value: Any) -> list[dict]:
+    """Return report entries as dictionaries from a JSONB array."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict) and item.get("email")]
 
 
 # ---------------------------------------------------------------------------
@@ -129,10 +165,8 @@ async def post_event(
         "expires_at": body.expires_at,
         "posted_by": email,
         "posted_at": datetime.now(timezone.utc).isoformat(),
-        "thumbs_up": 0,
-        "thumbs_down": 0,
-        "reports_present": [],   # list of {email, lat, lon}
-        "reports_gone": [],
+        "votes": {"up": [], "down": []},
+        "reports": {"present": [], "gone": []},
         "confirmed": False,      # True once CONFIRM_COUNT nearby "still here" reports
     }
     response = supabase.table("events").insert(event).execute()
@@ -171,20 +205,27 @@ async def report_event(
     email = _get_current_user(access_token)
     event = _get_event(event_id)
 
-    list_key = "reports_present" if body.still_here else "reports_gone"
+    reports = _json_object(event.get("reports"))
+    # Migrate the old split columns on first write when handling pre-migration rows.
+    present = _report_list(reports.get("present", event.get("reports_present", [])))
+    gone = _report_list(reports.get("gone", event.get("reports_gone", [])))
+    list_key = "present" if body.still_here else "gone"
     # Remove any previous report from this user
-    for key in ("reports_present", "reports_gone"):
-        event[key] = [r for r in event[key] if r["email"] != email]
-
-    event[list_key].append({"email": email})
-    event["confirmed"] = len(event["reports_present"]) >= CONFIRM_COUNT
+    present = [report for report in present if report["email"] != email]
+    gone = [report for report in gone if report["email"] != email]
+    (present if list_key == "present" else gone).append({"email": email})
+    event["confirmed"] = len(present) >= CONFIRM_COUNT
+    event["reports"] = {"present": present, "gone": gone}
     supabase.table("events").update({
-        "reports_present": event["reports_present"],
-        "reports_gone": event["reports_gone"],
+        "reports": event["reports"],
         "confirmed": event["confirmed"],
     }).eq("id", event_id).execute()
 
-    return {"confirmed": event["confirmed"], "reports_present": len(event["reports_present"])}
+    return {
+        "confirmed": event["confirmed"],
+        "reports_present": len(present),
+        "reports_gone": len(gone),
+    }
 
 
 @router.post("/{event_id}/rate")
@@ -198,8 +239,9 @@ async def rate_event(
     event = _get_event(event_id)
 
     # Remove previous vote
-    voters_up   = set(event.get("voters_up",   []))
-    voters_down = set(event.get("voters_down",  []))
+    votes = _json_object(event.get("votes"))
+    voters_up = set(_string_list(votes.get("up", event.get("voters_up", []))))
+    voters_down = set(_string_list(votes.get("down", event.get("voters_down", []))))
     voters_up.discard(email)
     voters_down.discard(email)
 
@@ -208,18 +250,12 @@ async def rate_event(
     else:
         voters_down.add(email)
 
-    event["voters_up"]    = list(voters_up)
-    event["voters_down"]  = list(voters_down)
-    event["thumbs_up"]    = len(voters_up)
-    event["thumbs_down"]  = len(voters_down)
+    event["votes"] = {"up": sorted(voters_up), "down": sorted(voters_down)}
     supabase.table("events").update({
-        "voters_up": event["voters_up"],
-        "voters_down": event["voters_down"],
-        "thumbs_up": event["thumbs_up"],
-        "thumbs_down": event["thumbs_down"],
+        "votes": event["votes"],
     }).eq("id", event_id).execute()
 
-    return {"thumbs_up": event["thumbs_up"], "thumbs_down": event["thumbs_down"]}
+    return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down)}
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +274,12 @@ def _get_event(event_id: str) -> dict:
 
 def _public(event: dict) -> dict:
     """Strip internal fields before sending to client."""
-    reports_present = event.get("reports_present")
+    votes = _json_object(event.get("votes"))
+    reports = _json_object(event.get("reports"))
+    voters_up = _string_list(votes.get("up", event.get("voters_up", [])))
+    voters_down = _string_list(votes.get("down", event.get("voters_down", [])))
+    reports_present = _report_list(reports.get("present", event.get("reports_present", [])))
+    reports_gone = _report_list(reports.get("gone", event.get("reports_gone", [])))
     return {
         "id":               event["id"],
         "title":            event.get("title", event.get("name", "")),
@@ -248,9 +289,10 @@ def _public(event: dict) -> dict:
         "lon":              event.get("lon", event.get("longitude")),
         "expires_at":       event.get("expires_at"),
         "posted_at":        event.get("posted_at"),
-        "thumbs_up":        event.get("thumbs_up", 0),
-        "thumbs_down":      event.get("thumbs_down", 0),
+        "thumbs_up":        len(voters_up) if votes or event.get("voters_up") else event.get("thumbs_up", 0),
+        "thumbs_down":      len(voters_down) if votes or event.get("voters_down") else event.get("thumbs_down", 0),
         "confirmed":        event.get("confirmed", False),
-        "reports_present":  len(reports_present) if isinstance(reports_present, list) else reports_present or 0,
+        "reports_present":  len(reports_present),
+        "reports_gone":     len(reports_gone),
 
     }
