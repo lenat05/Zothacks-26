@@ -242,6 +242,7 @@ async def rate_event(
     # Remove previous vote
     voters_up = {str(voter["id"]): voter for voter in _id_list(event.get("thumbs_up"))}
     voters_down = {str(voter["id"]): voter for voter in _id_list(event.get("thumbs_down"))}
+    old_score = (1 if user_id in voters_up else 0) - (1 if user_id in voters_down else 0)
     voters_up.pop(user_id, None)
     voters_down.pop(user_id, None)
 
@@ -250,12 +251,21 @@ async def rate_event(
     else:
         voters_down[user_id] = {"id": user_id}
 
+    new_score = (1 if body.vote == "up" else -1)
+    poster_id = event.get("created_by")
+    if poster_id:
+        poster = supabase.table("users").select("score").eq("id", poster_id).execute()
+        current_score = (poster.data[0].get("score") or 0) if poster.data else 0
+        supabase.table("users").update({"score": current_score + new_score - old_score}).eq("id", poster_id).execute()
+
+    confirmed = len(voters_up) - len(voters_down) >= CONFIRM_COUNT
     supabase.table("events").update({
         "thumbs_up": list(voters_up.values()),
         "thumbs_down": list(voters_down.values()),
+        "confirmed": confirmed,
     }).eq("id", event_id).execute()
 
-    return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down)}
+    return {"thumbs_up": len(voters_up), "thumbs_down": len(voters_down), "confirmed": confirmed}
 
 
 # ---------------------------------------------------------------------------
