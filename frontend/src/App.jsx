@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
+import "./casino.css";
 import SignupForm from "@/components/SignupForm";
 import LoginForm from "@/components/LoginForm";
 import EventCard from "@/components/EventCard";
 import EventForm from "@/components/EventForm";
+import GamblingPage from "@/components/GamblingPage";
+import steakLogo from "@/assets/steak.com.png";
 
 const EVENT_TAGS = ["free food", "free merch", "discounts", "career development"];
 
@@ -60,6 +63,7 @@ function App() {
         if (!response.ok) return setPage("login");
         const user = await response.json();
         setUsername(user.name);
+        setPoints(user.points ?? 0);
         setPage("homepage");
       })
       .catch(() => setPage("login"));
@@ -67,6 +71,8 @@ function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("Anteater");
+  const [points, setPoints] = useState(0);
+  const [casinoTransition, setCasinoTransition] = useState(false);
   const [selectedTag, setSelectedTag] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
   const [showPreferences, setShowPreferences] = useState(
@@ -90,7 +96,11 @@ function App() {
 
   async function onLoginSuccess() {
     const response = await fetch("/api/auth/me");
-    if (response.ok) setUsername((await response.json()).name);
+    if (response.ok) {
+      const user = await response.json();
+      setUsername(user.name);
+      setPoints(user.points ?? 0);
+    }
     setPage("homepage");
   }
 
@@ -116,6 +126,10 @@ function App() {
     return <LoginForm onSwitchToSignup={() => setPage("signup")} onLoginSuccess={onLoginSuccess} />;
   }
 
+  if (page === "casino") {
+    return <GamblingPage username={username} points={points} onPoints={setPoints} onBack={() => setPage("homepage")} />;
+  }
+
   if (page === "homepage") {
     return (
       <div style={{ maxWidth: "650px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
@@ -134,6 +148,16 @@ function App() {
         </header>
 
         <main>
+          <button className="steak-launcher" type="button" onClick={() => {
+            setCasinoTransition(true);
+            window.setTimeout(() => {
+              setCasinoTransition(false);
+              setPage("casino");
+            }, 850);
+          }}>
+            <img src={steakLogo} alt="Enter Steak casino" />
+          </button>
+          {casinoTransition && <div className="casino-transition" aria-label="Entering Steak casino"><span>🔥</span><b>🐉 ENTER THE DEN 🐲</b><span>🔥</span></div>}
           <div className="feed-heading" style={{ marginBottom: "20px" }}>
             <div><span className="eyebrow" style={{ color: "#000000" }}>AROUND CAMPUS</span><h2 style={{ color: "#000000" }}>Live updates</h2></div>
             <button className="primary-button add-event-button" type="button" onClick={() => setShowEventForm((visible) => !visible)}>
