@@ -86,24 +86,69 @@ def send_verification_email(email: str, name: str) -> str:
     return token
 
 
+def _event_notification_html(event: dict) -> str:
+    """Render the EventCard as email-safe HTML (without its iframe/actions)."""
+    title = str(event.get("title", event.get("name", "Campus update")))
+    tag = str(event.get("tag", ""))
+    tag_labels = {
+        "free food": "Free food",
+        "free merch": "Free merch",
+        "discounts": "Discounts",
+        "career development": "Career development",
+    }
+    description = str(event.get("description", ""))
+    lat = event.get("latitude", event.get("lat", ""))
+    lon = event.get("longitude", event.get("lon", ""))
+    location = f"{lat}, {lon}"
+    maps_url = f"https://www.google.com/maps?q={escape(str(lat), quote=True)},{escape(str(lon), quote=True)}"
+    confirmed = bool(event.get("confirmed", True))
+
+    def metadata(label: str, value: str) -> str:
+        return f'<span style="display:inline-block;margin:0 8px 5px 0;color:#718097;font-size:12px;">{escape(label)} {escape(value)}</span>'
+
+    meta = metadata("Posted", str(event["created_at"])) if event.get("created_at") else ""
+    if event.get("expires_at"):
+        meta += metadata("Ends", str(event["expires_at"]))
+
+    return f"""
+<div style="width:100%;box-sizing:border-box;padding:24px;background:#f4f7fb;font-family:Arial,sans-serif;color:#203047;">
+  <div style="max-width:560px;margin:0 auto;padding:24px;background:#fff;border:1px solid #d9e2f0;border-radius:16px;box-shadow:0 10px 30px rgba(36,61,100,.09);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <span style="color:#32a879;font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;">
+        <span style="display:inline-block;width:8px;height:8px;margin-right:7px;border-radius:50%;background:#32a879;"></span>{'Confirmed' if confirmed else 'Needs confirmation'}
+      </span>
+      {f'<span style="display:inline-block;padding:6px 11px;border-radius:999px;background:#e2ebff;color:#315ba8;font-size:12px;font-weight:800;">{escape(tag_labels.get(tag, tag))}</span>' if tag else ''}
+    </div>
+    <h1 style="margin:0 0 10px;font-size:24px;line-height:1.35;color:#203047;">{escape(title)}</h1>
+    {f'<p style="margin:0 0 16px;color:#526176;font-size:14px;line-height:1.6;white-space:pre-line;">{escape(description)}</p>' if description else ''}
+    <p style="margin:0 0 9px;color:#65748a;font-size:12px;">📍 {escape(location)}</p>
+    <p style="margin:12px 0 16px;"><a href="{maps_url}" style="display:inline-block;padding:10px 14px;border-radius:9px;background:#315ba8;color:#fff;font-size:13px;font-weight:700;text-decoration:none;">Open in Google Maps →</a></p>
+    <div style="padding-top:13px;border-top:1px solid #dce4f0;">{meta}</div>
+  </div>
+</div>""".strip()
+
+
 def send_event_notification_emails(recipients: list[dict], event: dict) -> None:
     """Notify users whose selected tags match a newly confirmed event."""
     if not recipients:
         return
 
-    title = event.get("title", event.get("name", "Campus update"))
-    tag = event.get("tag", "")
-    description = event.get("description", "")
-    location = f"{event.get('latitude', event.get('lat', ''))}, {event.get('longitude', event.get('lon', ''))}"
+    title = str(event.get("title", event.get("name", "Campus update")))
+    tag = str(event.get("tag", ""))
+    description = str(event.get("description", ""))
+    lat = event.get("latitude", event.get("lat", ""))
+    lon = event.get("longitude", event.get("lon", ""))
+    location = f"{lat}, {lon}"
     subject = f"Confirmed ZotHacks update: {title}"
+    html_event = _event_notification_html(event)
     with _smtp_connection() as conn:
         for recipient in recipients:
             email = recipient.get("email")
             if not email:
                 continue
-            name = escape(str(recipient.get("name") or "Anteater"))
-            plain = f"Hi {recipient.get('name') or 'Anteater'},\n\n{title} ({tag}) was confirmed near {location}.\n{description}"
-            html = f"<p>Hi <strong>{name}</strong>,</p><p><strong>{escape(title)}</strong> ({escape(tag)}) was confirmed near {escape(location)}.</p><p>{escape(description)}</p>"
+            recipient_name = str(recipient.get("name") or "Anteater")
+            plain = f"Hi {recipient_name},\n\n{title} ({tag}) was confirmed near {location}.\n{description}\n\nGoogle Maps: https://www.google.com/maps?q={lat},{lon}"
+            html = f'<p style="font-family:Arial,sans-serif;color:#203047;">Hi <strong>{escape(recipient_name)}</strong>,</p>{html_event}'
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = _sender()
