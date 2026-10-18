@@ -80,15 +80,15 @@ function App() {
         </header>
 
         <div style={{ padding: "12px", backgroundColor: "#eff4f9", borderRadius: "16px", fontSize: "1.2rem", color: "#0a0a0a", marginBottom: "20px" }}>
-           <em>Pop up!</em>
+           <button className="primary-button add-event-button" type="button" onClick={() => setShowEventForm((visible) => !visible)}>
+              {showEventForm ? "Close form" : "+ Post an event"}
+            </button>
         </div>
 
         <main>
           <div className="feed-heading">
             <div><span className="eyebrow">AROUND CAMPUS</span><h2>Live updates</h2></div>
-            <button className="primary-button add-event-button" type="button" onClick={() => setShowEventForm((visible) => !visible)}>
-              {showEventForm ? "Close form" : "+ Post an event"}
-            </button>
+            
           </div>
 
           {showEventForm && <EventForm onCancel={() => setShowEventForm(false)} onCreated={(created) => {
@@ -136,3 +136,4 @@ function App() {
 }
 
 export default App;
+ 
